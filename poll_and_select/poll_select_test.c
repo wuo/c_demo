@@ -1,14 +1,28 @@
 //gcc poll_select_test.c -o test -lpthread
+
+//#define USE_SELECT
+//#define USE_POLL
+#define USE_EPOLL
+
 #include<stdio.h>
 #include<unistd.h>
 #include<stdlib.h>
 #include<string.h>
 #include<pthread.h>
 #include<sys/eventfd.h>
+#ifdef USE_SELECT
 #include<sys/select.h>
+#endif
+#ifdef USE_POLL
 #include<poll.h>
+#endif
+#ifdef USE_EPOLL
+#include<sys/epoll.h>
+#include<memory.h>
 
-//#define USE_SELECT
+#define MAX_EVENTS 1
+#endif
+
 
 void *thread_function(void* arg);
 int value = 1;
@@ -52,7 +66,8 @@ int main() {
                 printf("read after select, value is %lu\n", u);
         }
     }
-#else
+#endif
+#ifdef USE_POLL
     struct pollfd pfd;
     pfd.fd = efd;
     pfd.events = POLLIN;
@@ -71,6 +86,25 @@ int main() {
         }
     }
 #endif
+#ifdef USE_EPOLL
+    int epollfd = epoll_create(MAX_EVENTS);
+    if(epollfd == -1) {
+        printf("epoll_create error\n");
+    }
+    struct epoll_event event, events[MAX_EVENTS];
+    event.events = EPOLLIN;
+    epoll_ctl(epollfd, EPOLL_CTL_ADD, efd, &event);
+    int ret = epoll_wait(epollfd, events, MAX_EVENTS, -1);
+    if(ret == -1) {
+        printf("epoll_wait error\n");
+        goto error;
+    }
+    if(events[0].events & EPOLLIN) {
+        s = read(efd, &u, sizeof(uint64_t));
+        if(s == sizeof(uint64_t))
+            printf("read after epoll, value is %lu\n", u);
+    }
+#endif
     void *thread_result;
     res = pthread_join(a_thread, &thread_result);
     if(res != 0) {
@@ -79,10 +113,12 @@ int main() {
     }
     printf("thread joined, it resulted %s\n", (char*)thread_result);
     exit(EXIT_SUCCESS);
+error:
+    printf("main error\n");
+    exit(EXIT_FAILURE);
 }
 
 void *thread_function(void *arg) {
-    sleep(1);
     int fd = *((int*)arg);
     printf("child thread running, argument: %d\n", fd);
     size_t s;
