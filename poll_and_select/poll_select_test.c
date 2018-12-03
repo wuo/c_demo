@@ -1,8 +1,4 @@
-//gcc poll_select_test.c -o test -lpthread
-
-//#define USE_SELECT
-//#define USE_POLL
-#define USE_EPOLL
+//gcc poll_select_test.c -o test -lpthread -DUSE_POLL
 
 #include<stdio.h>
 #include<unistd.h>
