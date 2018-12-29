@@ -1,3 +1,6 @@
+/*
+ * Use sudo to execute this program
+ */
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/socket.h>
